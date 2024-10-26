@@ -1,0 +1,152 @@
+import pandas as pd
+import matplotlib.pyplot as plt
+import numpy as np
+import seaborn as sns
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.impute import SimpleImputer
+from sklearn.compose import ColumnTransformer
+from sklearn.preprocessing import OneHotEncoder
+from sklearn.linear_model import LinearRegression
+from sklearn.metrics import mean_squared_error
+
+# Loading Dataset
+data = pd.read_csv('accident1.csv')
+data.info()
+data.describe().T
+data.head()
+# Data visualization - Distribution of Accident Severity
+plt.figure(figsize=(6, 4))
+sns.countplot(x='Accident_severity', data=data)
+plt.title("Accident Severity Distribution,(ASD)")
+plt.xlabel("Severity,(S)")
+plt.ylabel("Count")
+plt.show()
+
+# Data statistics
+print('Basic Statistics for Numerical columns:')
+print(data.describe())
+
+# Checking for missing values
+plt.figure(figsize=(10, 6))
+sns.heatmap(data.isnull(), cbar=False, cmap='viridis')
+plt.title("Missing Values Heatmap")
+plt.show()
+
+# dropping irrelevant or missing data columns (customize as needed)
+# Ensure 'data_cleaned' has the same number of rows as 'X' and 'y' will be derived from it
+data_cleaned = data[['Driver_Age_Band', 'Driver_Gender', 'Level_of_Education', 'Vehicle_Type',
+                     'Experience_in_Driving', 'Accident_severity']]
+
+
+# Filling missing values with the mode for categorical columns, including 'Accident_severity'
+# This is done BEFORE mapping and splitting to avoid leakage
+for column in ["Level_of_Education", 'Experience_in_Driving', 'Vehicle_Type', 'Accident_severity']:
+    data_cleaned[column].fillna(data_cleaned[column].mode()[0], inplace=True)  # Use data_cleaned here
+
+# Mapping "Accident_severity" to numerical values
+severity_mapping = {
+    'Slight Injury': 0,
+    'Serious Injury': 0,
+    'Fatal injury': 0
+}
+# Applying map to the Accident_severity column
+data_cleaned['Accident_severity'] = data_cleaned['Accident_severity'].map(severity_mapping)
+
+# Defining X and y (using the mapped 'Accident_severity')
+# Now X and y will have the same number of rows
+X = data_cleaned[['Driver_Age_Band', 'Driver_Gender', 'Level_of_Education', 'Vehicle_Type', 'Experience_in_Driving']]
+y = data_cleaned['Accident_severity']
+
+#preprocessing (encoding categorical variables)
+categorical_features = ['Driver_Age_Band','Driver_Gender','Level_of_Education','Vehicle_Type','Experience_in_Driving']
+
+preprocessor = ColumnTransformer(
+     transformers=[
+   ('cat', OneHotEncoder(), categorical_features)
+    ], remainder='passthrough')# ... (your previous code) ...
+
+# Splitting the dataset into training and testing sets
+# X and y now have consistent shapes, so train_test_split should work
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=41)
+
+# Applying preprocess pipeline
+X_train_processed = preprocessor.fit_transform(X_train)
+X_test_processed = preprocessor.transform(X_test)  # Changed fit_transform to transform
+
+# Visualizing processed data
+print("Training data shape after preprocessing: ", X_train_processed.shape)
+print("Testing data shape after preprocessing: ", X_test_processed.shape)
+
+# Visualization example for one of the Categorical variables
+plt.figure(figsize=(8, 6))
+sns.countplot(x='Driver_Age_Band', data=data_cleaned)
+plt.title("Driver Age Band Distribution")
+plt.xlabel("Age Band")
+plt.ylabel("Count")
+plt.show()
+print("\nPreprocessing dataset is done and ready for training the model")
+
+# Filling missing values with the mode for categorical columns, including 'Accident_severity'
+# This is done BEFORE mapping and splitting to avoid leakage
+for column in ["Level_of_Education", 'Experience_in_Driving', 'Vehicle_Type', 'Accident_severity']:
+    data[column].fillna(data[column].mode()[0], inplace=True) 
+
+# Mapping "Accident_severity" to numerical values
+severity_mapping = {
+    'Slight Injury': 0,
+    'Serious Injury': 0,
+    'Fatal Injury':0 
+}
+#Applying map to the Accident_severity column
+data['Accident_severity'] = data['Accident_severity'].map(severity_mapping)
+
+# Defining X and y (using the mapped 'Accident_severity')
+X = data[['Driver_Age_Band', 'Driver_Gender', 'Level_of_Education', 'Vehicle_Type', 'Experience_in_Driving']]
+y = data['Accident_severity']
+
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Applying preprocessing to features only
+X_train_processed = preprocessor.fit_transform(X_train)
+X_test_processed = preprocessor.transform(X_test)
+
+# Checking the shape of processed data
+print(X_train_processed.shape, X_test_processed.shape)
+
+# Creating a pipeline to preprocess data and applying linear regression
+model_pipeline = Pipeline(steps=[('preprocessor', preprocessor), ('regressor', LinearRegression())])
+
+# Training the model
+model_pipeline.fit(X_train, y_train) 
+
+
+# Making predictions on the test set
+y_pred = model_pipeline.predict(X_test)
+mse = mean_squared_error(y_test, y_pred)
+print(f"Mean Squared Error: {mse}")
+
+# EXPLANATION ON HOW SUCH MODEL COULD BE USED IN TRAFFIC ACCIDENTS ANALYSIS AND PREVENTION IN UNDERDEVELOPING COUNTRIES
+#1. Resource Allocation
+   #-Targeted Interventions- Predicting areas with high accident severity enables authorities to allocate resources more effectively, such as deploying additional traffic officers, enhancing signage, or improving road infrastructure in high-risk zones.
+   #-Emergency Response- Predictive models assist in planning and optimizing emergency response, ensuring that medical and rescue teams are dispatched quickly to locations where severe accidents are likely to happen.
+
+#2. Policy Making
+   #-Data-Driven Decisions- Policymakers can leverage insights from the model to create policies aimed at reducing accident severity, such as enforcing stricter vehicle safety standards or enhancing driver training.
+   #-Infrastructure DevelopmenT- The model can identify areas where infrastructure upgrades, like improved lighting, pedestrian crossings, or safer intersections, would reduce accident severity.
+
+#3. Public Awareness and Education
+   #- Targeted Campaigns- Public awareness efforts can be tailored using the model’s predictions. For instance, if young drivers are more prone to severe accidents, educational campaigns can specifically target this demographic.
+   #-Behavioral Change- By understanding the factors contributing to severe accidents, authorities can encourage safer driving habits through targeted education and awareness programs.
+
+#4. Insurance and Financial Planning
+   #-Risk Assessment- Insurance companies can utilize the model to improve risk assessment, leading to more accurate and fair insurance premium pricing based on accident severity predictions.
+   #-Financial Planning- Governments and organizations can better plan budgets by anticipating the financial impact of severe accidents, allowing for more efficient allocation of funds toward prevention and mitigation.
+
+#5. Technological Advancements
+   #-Integration with Smart Systems- The model can be integrated with smart traffic management systems to offer real-time predictions and alerts, potentially preventing accidents.
+   #-Innovation in Vehicle Safety- Insights from the model can spur advancements in vehicle safety technology, such as the development of advanced driver-assistance systems (ADAS) aimed at reducing severe accidents.
+
+#6. Long-Term Benefits
+   #- Sustainable Development- Reducing accident severity enhances public safety and well-being, contributing to sustainable development goals.
+   #- Economic Growth- By minimizing the economic impact of severe accidents, countries can foster greater economic stability and growth.
